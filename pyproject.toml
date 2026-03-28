@@ -1,0 +1,33 @@
+[project]
+name = "photo-metadata-scrubber"
+version = "0.1.0"
+description = "Strips privacy-sensitive EXIF location (GPS) data from photos."
+requires-python = ">=3.12"
+dependencies = [
+    "typer>=0.15.0",
+    "rich>=14.3.3",
+    "pillow>=10.2.0",
+    "piexif>=1.1.3",
+    "local-first-common",
+]
+
+[project.scripts]
+scrub-photo = "photo_metadata_scrubber.logic:app"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/photo_metadata_scrubber"]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0.2",
+]
+
+[tool.uv.sources]
+local-first-common = { git = "https://github.com/jamalhansen/local-first-common.git", branch = "main" }
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
