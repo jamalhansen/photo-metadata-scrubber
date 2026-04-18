@@ -10,19 +10,20 @@ from rich.panel import Panel
 from local_first_common.cli import (
     dry_run_option,
     resolve_dry_run,
+    pipe_option,
 )
 from local_first_common.tracking import register_tool
 
 _TOOL = register_tool("photo-metadata-scrubber")
-console = Console()
+console = Console(stderr=True) # Send rich output to stderr
 app = typer.Typer(help="Strips privacy-sensitive EXIF location (GPS) data from photos.")
 
-def scrub_exif(image_path: Path, dry_run: bool = False) -> bool:
+def scrub_exif(image_path: Path, dry_run: bool = False, verbose: bool = True) -> bool:
     """Remove GPS info from EXIF data while keeping other tags."""
     try:
         img = Image.open(image_path)
         if "exif" not in img.info:
-            if not dry_run:
+            if verbose:
                 console.print(f"[dim]No EXIF data found in {image_path.name}[/dim]")
             return False
 
@@ -30,12 +31,13 @@ def scrub_exif(image_path: Path, dry_run: bool = False) -> bool:
         
         # Check if GPS data exists
         if not exif_dict.get("GPS"):
-            if not dry_run:
+            if verbose:
                 console.print(f"[dim]No GPS data found in {image_path.name}[/dim]")
             return False
 
         if dry_run:
-            console.print(f"[yellow][dry-run] Would remove GPS tags from {image_path.name}[/yellow]")
+            if verbose:
+                console.print(f"[yellow][dry-run] Would remove GPS tags from {image_path.name}[/yellow]")
             return True
 
         # Remove GPS data
@@ -44,20 +46,23 @@ def scrub_exif(image_path: Path, dry_run: bool = False) -> bool:
         
         # Save without GPS
         img.save(image_path, exif=exif_bytes)
-        console.print(f"[green]Successfully scrubbed GPS data from {image_path.name}[/green]")
+        if verbose:
+            console.print(f"[green]Successfully scrubbed GPS data from {image_path.name}[/green]")
         return True
 
     except Exception as e:
-        console.print(f"[red]Error processing {image_path.name}: {e}[/red]")
+        if verbose:
+            console.print(f"[red]Error processing {image_path.name}: {e}[/red]")
         return False
 
 @app.command()
 def scrub(
     path: Annotated[Path, typer.Argument(help="File or directory to scrub")],
     dry_run: Annotated[bool, dry_run_option()] = False,
+    pipe: Annotated[bool, pipe_option()] = False,
 ):
     """Strip EXIF location data from the specified photo or directory."""
-    dry_run = resolve_dry_run(dry_run, False)  # no_llm is always False here
+    dry_run = resolve_dry_run(dry_run, False)
 
     if not path.exists():
         console.print(f"[red]Path does not exist: {path}[/red]")
@@ -72,20 +77,28 @@ def scrub(
             files_to_process.extend(path.glob(f"*{ext.upper()}"))
 
     if not files_to_process:
-        console.print(f"No photos found in {path}")
+        if not pipe:
+            console.print(f"No photos found in {path}")
         return
 
-    console.print(Panel(f"Scrubbing GPS data from {len(files_to_process)} photos...", title="Photo Metadata Scrubber", border_style="cyan"))
+    if not pipe:
+        console.print(Panel(f"Scrubbing GPS data from {len(files_to_process)} photos...", title="Photo Metadata Scrubber", border_style="cyan"))
 
     scrubbed_count = 0
     for file in files_to_process:
-        if scrub_exif(file, dry_run=dry_run):
+        # Scrub always overwrites the file in place, so the path doesn't change
+        if scrub_exif(file, dry_run=dry_run, verbose=not pipe):
             scrubbed_count += 1
+        
+        if pipe:
+            # Output the path to stdout for the next tool in the pipe
+            print(file.absolute())
 
-    if not dry_run:
-        console.print(f"\n[bold green]Done! Scrubbed {scrubbed_count} photos.[/bold green]")
-    else:
-        console.print(f"\n[yellow][dry-run] Would have scrubbed {scrubbed_count} photos.[/yellow]")
+    if not pipe:
+        if not dry_run:
+            console.print(f"\n[bold green]Done! Scrubbed {scrubbed_count} photos.[/bold green]")
+        else:
+            console.print(f"\n[yellow][dry-run] Would have scrubbed {scrubbed_count} photos.[/yellow]")
 
 if __name__ == "__main__":
     app()
