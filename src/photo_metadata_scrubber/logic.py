@@ -8,13 +8,17 @@ from rich.console import Console
 from rich.panel import Panel
 
 from local_first_common.cli import (
+    init_config_option,
     dry_run_option,
     resolve_dry_run,
     pipe_option,
 )
 from local_first_common.tracking import register_tool
 
-_TOOL = register_tool("photo-metadata-scrubber")
+TOOL_NAME = "photo-metadata-scrubber"
+DEFAULTS = {"provider": "ollama", "model": "llama3"}
+_TOOL = register_tool(TOOL_NAME)
+
 console = Console(stderr=True) # Send rich output to stderr
 app = typer.Typer(help="Strips privacy-sensitive EXIF location (GPS) data from photos.")
 
@@ -57,9 +61,10 @@ def scrub_exif(image_path: Path, dry_run: bool = False, verbose: bool = True) ->
 
 @app.command()
 def scrub(
-    path: Annotated[Path, typer.Argument(help="File or directory to scrub")],
+    path: Path = typer.Argument(..., help="File or directory to scrub"),
     dry_run: Annotated[bool, dry_run_option()] = False,
     pipe: Annotated[bool, pipe_option()] = False,
+    init_config: Annotated[bool, init_config_option(TOOL_NAME, DEFAULTS)] = False,
 ):
     """Strip EXIF location data from the specified photo or directory."""
     dry_run = resolve_dry_run(dry_run, False)
