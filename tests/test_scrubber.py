@@ -3,7 +3,12 @@ from pathlib import Path
 import piexif
 from typer.testing import CliRunner
 from PIL import Image
-from photo_metadata_scrubber.logic import app, scrub_exif
+from photo_metadata_scrubber.logic import (
+    ExifReadError,
+    app,
+    scrub_exif,
+    scrub_exif_or_raise,
+)
 
 
 runner = CliRunner()
@@ -82,6 +87,17 @@ def test_scrub_exif_returns_false_on_processing_error(tmp_path):
     result = scrub_exif(missing_path, verbose=False)
 
     assert result is False
+
+
+def test_scrub_exif_or_raise_raises_read_error_for_missing_file(tmp_path):
+    missing_path = tmp_path / "missing.jpg"
+
+    try:
+        scrub_exif_or_raise(missing_path, verbose=False)
+    except ExifReadError:
+        pass
+    else:
+        raise AssertionError("Expected ExifReadError")
 
 
 def test_scrub_command_missing_path_exits_nonzero(tmp_path):

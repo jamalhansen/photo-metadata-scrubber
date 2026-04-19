@@ -19,45 +19,79 @@ TOOL_NAME = "photo-metadata-scrubber"
 DEFAULTS = {"provider": "ollama", "model": "llama3"}
 _TOOL = register_tool(TOOL_NAME)
 
-console = Console(stderr=True) # Send rich output to stderr
+console = Console(stderr=True)  # Send rich output to stderr
 app = typer.Typer(help="Strips privacy-sensitive EXIF location (GPS) data from photos.")
 
-def scrub_exif(image_path: Path, dry_run: bool = False, verbose: bool = True) -> bool:
-    """Remove GPS info from EXIF data while keeping other tags."""
+
+class PhotoScrubberError(Exception):
+    """Base error for scrub-photo core operations."""
+
+
+class ExifReadError(PhotoScrubberError):
+    """Raised when image EXIF data cannot be read."""
+
+
+class ExifWriteError(PhotoScrubberError):
+    """Raised when updated EXIF data cannot be written."""
+
+
+def scrub_exif_or_raise(
+    image_path: Path, dry_run: bool = False, verbose: bool = True
+) -> bool:
+    """Strict EXIF scrubber that raises typed errors for I/O problems."""
     try:
         img = Image.open(image_path)
-        if "exif" not in img.info:
-            if verbose:
-                console.print(f"[dim]No EXIF data found in {image_path.name}[/dim]")
-            return False
+    except Exception as e:  # noqa: BLE001
+        raise ExifReadError(f"Could not open image {image_path.name}: {e}") from e
 
-        exif_dict = piexif.load(img.info["exif"])
-        
-        # Check if GPS data exists
-        if not exif_dict.get("GPS"):
-            if verbose:
-                console.print(f"[dim]No GPS data found in {image_path.name}[/dim]")
-            return False
-
-        if dry_run:
-            if verbose:
-                console.print(f"[yellow][dry-run] Would remove GPS tags from {image_path.name}[/yellow]")
-            return True
-
-        # Remove GPS data
-        del exif_dict["GPS"]
-        exif_bytes = piexif.dump(exif_dict)
-        
-        # Save without GPS
-        img.save(image_path, exif=exif_bytes)
+    if "exif" not in img.info:
         if verbose:
-            console.print(f"[green]Successfully scrubbed GPS data from {image_path.name}[/green]")
+            console.print(f"[dim]No EXIF data found in {image_path.name}[/dim]")
+        return False
+
+    try:
+        exif_dict = piexif.load(img.info["exif"])
+    except Exception as e:  # noqa: BLE001
+        raise ExifReadError(f"Could not parse EXIF for {image_path.name}: {e}") from e
+
+    if not exif_dict.get("GPS"):
+        if verbose:
+            console.print(f"[dim]No GPS data found in {image_path.name}[/dim]")
+        return False
+
+    if dry_run:
+        if verbose:
+            console.print(
+                f"[yellow][dry-run] Would remove GPS tags from {image_path.name}[/yellow]"
+            )
         return True
 
-    except Exception as e:
+    del exif_dict["GPS"]
+    exif_bytes = piexif.dump(exif_dict)
+
+    try:
+        img.save(image_path, exif=exif_bytes)
+    except Exception as e:  # noqa: BLE001
+        raise ExifWriteError(
+            f"Could not save updated EXIF for {image_path.name}: {e}"
+        ) from e
+
+    if verbose:
+        console.print(
+            f"[green]Successfully scrubbed GPS data from {image_path.name}[/green]"
+        )
+    return True
+
+
+def scrub_exif(image_path: Path, dry_run: bool = False, verbose: bool = True) -> bool:
+    """Compatibility wrapper for callers that expect bool status."""
+    try:
+        return scrub_exif_or_raise(image_path, dry_run=dry_run, verbose=verbose)
+    except PhotoScrubberError as e:
         if verbose:
             console.print(f"[red]Error processing {image_path.name}: {e}[/red]")
         return False
+
 
 @app.command()
 def scrub(
@@ -87,23 +121,34 @@ def scrub(
         return
 
     if not pipe:
-        console.print(Panel(f"Scrubbing GPS data from {len(files_to_process)} photos...", title="Photo Metadata Scrubber", border_style="cyan"))
+        console.print(
+            Panel(
+                f"Scrubbing GPS data from {len(files_to_process)} photos...",
+                title="Photo Metadata Scrubber",
+                border_style="cyan",
+            )
+        )
 
     scrubbed_count = 0
     for file in files_to_process:
         # Scrub always overwrites the file in place, so the path doesn't change
         if scrub_exif(file, dry_run=dry_run, verbose=not pipe):
             scrubbed_count += 1
-        
+
         if pipe:
             # Output the path to stdout for the next tool in the pipe
             print(file.absolute())
 
     if not pipe:
         if not dry_run:
-            console.print(f"\n[bold green]Done! Scrubbed {scrubbed_count} photos.[/bold green]")
+            console.print(
+                f"\n[bold green]Done! Scrubbed {scrubbed_count} photos.[/bold green]"
+            )
         else:
-            console.print(f"\n[yellow][dry-run] Would have scrubbed {scrubbed_count} photos.[/yellow]")
+            console.print(
+                f"\n[yellow][dry-run] Would have scrubbed {scrubbed_count} photos.[/yellow]"
+            )
+
 
 if __name__ == "__main__":
     app()
