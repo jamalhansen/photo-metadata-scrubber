@@ -3,9 +3,9 @@ from pathlib import Path
 import piexif
 from typer.testing import CliRunner
 from PIL import Image
-from photo_metadata_scrubber.logic import (
+from photo_metadata_scrubber.cli import app
+from photo_metadata_scrubber.core import (
     ExifReadError,
-    app,
     scrub_exif,
     scrub_exif_or_raise,
 )

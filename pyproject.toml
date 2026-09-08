@@ -14,7 +14,7 @@ dependencies = [
 ]
 
 [project.scripts]
-scrub-photo = "photo_metadata_scrubber.logic:app"
+scrub-photo = "photo_metadata_scrubber.cli:app"
 
 [build-system]
 requires = ["hatchling"]
