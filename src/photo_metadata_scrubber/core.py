@@ -25,7 +25,7 @@ def scrub_exif_or_raise(
     """Strict EXIF scrubber that raises typed errors for I/O problems."""
     try:
         img = Image.open(image_path)
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:
         raise ExifReadError(f"Could not open image {image_path.name}: {e}") from e
 
     if "exif" not in img.info:
@@ -35,7 +35,7 @@ def scrub_exif_or_raise(
 
     try:
         exif_dict = piexif.load(img.info["exif"])
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:
         raise ExifReadError(f"Could not parse EXIF for {image_path.name}: {e}") from e
 
     if not exif_dict.get("GPS"):
@@ -55,7 +55,7 @@ def scrub_exif_or_raise(
 
     try:
         img.save(image_path, exif=exif_bytes)
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:
         raise ExifWriteError(
             f"Could not save updated EXIF for {image_path.name}: {e}"
         ) from e

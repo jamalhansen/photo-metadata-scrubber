@@ -2,16 +2,16 @@ from pathlib import Path
 from typing import Annotated
 
 import typer
+from local_first_common.cli import (
+    dry_run_option,
+    init_config_option,
+    pipe_option,
+    resolve_dry_run,
+)
+from local_first_common.tracking import register_tool
 from rich.console import Console
 from rich.panel import Panel
 
-from local_first_common.cli import (
-    init_config_option,
-    dry_run_option,
-    resolve_dry_run,
-    pipe_option,
-)
-from local_first_common.tracking import register_tool
 from .core import scrub_exif
 
 TOOL_NAME = "photo-metadata-scrubber"
@@ -24,7 +24,7 @@ app = typer.Typer(help="Strips privacy-sensitive EXIF location (GPS) data from p
 
 @app.command()
 def scrub(
-    path: Path = typer.Argument(..., help="File or directory to scrub"),
+    path: Annotated[Path, typer.Argument(help="File or directory to scrub")],
     dry_run: Annotated[bool, dry_run_option()] = False,
     pipe: Annotated[bool, pipe_option()] = False,
     init_config: Annotated[bool, init_config_option(TOOL_NAME, DEFAULTS)] = False,

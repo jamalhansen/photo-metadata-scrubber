@@ -1,15 +1,15 @@
 from pathlib import Path
 
 import piexif
-from typer.testing import CliRunner
 from PIL import Image
+from typer.testing import CliRunner
+
 from photo_metadata_scrubber.cli import app
 from photo_metadata_scrubber.core import (
     ExifReadError,
     scrub_exif,
     scrub_exif_or_raise,
 )
-
 
 runner = CliRunner()
 
@@ -41,7 +41,7 @@ def test_scrub_exif_removes_gps(tmp_path):
 
     # Verify GPS exists first
     exif_dict = piexif.load(img_path.as_posix())
-    assert "GPS" in exif_dict and exif_dict["GPS"]
+    assert exif_dict.get("GPS")
 
     # Scrub
     result = scrub_exif(img_path)
@@ -69,7 +69,7 @@ def test_scrub_exif_dry_run(tmp_path):
 
     # Verify GPS still exists
     exif_dict = piexif.load(img_path.as_posix())
-    assert "GPS" in exif_dict and exif_dict["GPS"]
+    assert exif_dict.get("GPS")
 
 
 def test_scrub_exif_without_any_exif_returns_false(tmp_path):
