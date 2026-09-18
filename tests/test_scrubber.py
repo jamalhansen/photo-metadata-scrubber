@@ -121,3 +121,21 @@ def test_scrub_command_dry_run_counts_matching_files(tmp_path):
 
     assert result.exit_code == 0
     assert "Would have scrubbed 1 photos" in result.output
+
+
+def test_scrub_command_reads_paths_from_stdin(tmp_path):
+    img_path = create_test_image(tmp_path, has_gps=True)
+
+    result = runner.invoke(app, ["--pipe"], input=f"{img_path}\n")
+
+    assert result.exit_code == 0
+    assert result.output.strip() == str(img_path.absolute())
+    exif_dict = piexif.load(img_path.as_posix())
+    assert "GPS" not in exif_dict or not exif_dict["GPS"]
+
+
+def test_scrub_command_no_path_and_empty_stdin_reports_no_photos(tmp_path):
+    result = runner.invoke(app, [], input="")
+
+    assert result.exit_code == 0
+    assert "No photos found" in result.output

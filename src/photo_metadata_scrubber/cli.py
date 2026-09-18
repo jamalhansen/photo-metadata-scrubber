@@ -1,3 +1,4 @@
+import sys
 from pathlib import Path
 from typing import Annotated
 
@@ -24,7 +25,7 @@ app = typer.Typer(help="Strips privacy-sensitive EXIF location (GPS) data from p
 
 @app.command()
 def scrub(
-    path: Annotated[Path, typer.Argument(help="File or directory to scrub")],
+    path: Annotated[Path | None, typer.Argument(help="File or directory to scrub")] = None,
     dry_run: Annotated[bool, dry_run_option()] = False,
     pipe: Annotated[bool, pipe_option()] = False,
     init_config: Annotated[bool, init_config_option(TOOL_NAME, DEFAULTS)] = False,
@@ -32,21 +33,30 @@ def scrub(
     """Strip EXIF location data from the specified photo or directory."""
     dry_run = resolve_dry_run(dry_run, False)
 
-    if not path.exists():
-        console.print(f"[red]Path does not exist: {path}[/red]")
-        raise typer.Exit(1)
-
     files_to_process = []
-    if path.is_file():
-        files_to_process.append(path)
-    elif path.is_dir():
-        for ext in (".jpg", ".jpeg", ".png", ".tiff"):
-            files_to_process.extend(path.glob(f"*{ext}"))
-            files_to_process.extend(path.glob(f"*{ext.upper()}"))
+    if path is None:
+        if not sys.stdin.isatty():
+            for line in sys.stdin:
+                p = Path(line.strip())
+                if p.exists():
+                    files_to_process.append(p)
+        else:
+            console.print("[red]Error: No path provided and no stdin detected.[/red]")
+            raise typer.Exit(1)
+    else:
+        if not path.exists():
+            console.print(f"[red]Path does not exist: {path}[/red]")
+            raise typer.Exit(1)
+        if path.is_file():
+            files_to_process.append(path)
+        elif path.is_dir():
+            for ext in (".jpg", ".jpeg", ".png", ".tiff"):
+                files_to_process.extend(path.glob(f"*{ext}"))
+                files_to_process.extend(path.glob(f"*{ext.upper()}"))
 
     if not files_to_process:
         if not pipe:
-            console.print(f"No photos found in {path}")
+            console.print("No photos found.")
         return
 
     if not pipe:
