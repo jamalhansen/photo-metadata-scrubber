@@ -80,13 +80,9 @@ def scrub(
 
     if not pipe:
         if not dry_run:
-            console.print(
-                f"\n[bold green]Done! Scrubbed {scrubbed_count} photos.[/bold green]"
-            )
+            console.print(f"\n[bold green]Done! Scrubbed {scrubbed_count} photos.[/bold green]")
         else:
-            console.print(
-                f"\n[yellow][dry-run] Would have scrubbed {scrubbed_count} photos.[/yellow]"
-            )
+            console.print(f"\n[yellow][dry-run] Would have scrubbed {scrubbed_count} photos.[/yellow]")
 
 
 if __name__ == "__main__":

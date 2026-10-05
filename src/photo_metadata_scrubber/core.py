@@ -19,9 +19,7 @@ class ExifWriteError(PhotoScrubberError):
     """Raised when updated EXIF data cannot be written."""
 
 
-def scrub_exif_or_raise(
-    image_path: Path, dry_run: bool = False, verbose: bool = True
-) -> bool:
+def scrub_exif_or_raise(image_path: Path, dry_run: bool = False, verbose: bool = True) -> bool:
     """Strict EXIF scrubber that raises typed errors for I/O problems."""
     try:
         img = Image.open(image_path)
@@ -45,9 +43,7 @@ def scrub_exif_or_raise(
 
     if dry_run:
         if verbose:
-            console.print(
-                f"[yellow][dry-run] Would remove GPS tags from {image_path.name}[/yellow]"
-            )
+            console.print(f"[yellow][dry-run] Would remove GPS tags from {image_path.name}[/yellow]")
         return True
 
     del exif_dict["GPS"]
@@ -56,14 +52,10 @@ def scrub_exif_or_raise(
     try:
         img.save(image_path, exif=exif_bytes)
     except Exception as e:
-        raise ExifWriteError(
-            f"Could not save updated EXIF for {image_path.name}: {e}"
-        ) from e
+        raise ExifWriteError(f"Could not save updated EXIF for {image_path.name}: {e}") from e
 
     if verbose:
-        console.print(
-            f"[green]Successfully scrubbed GPS data from {image_path.name}[/green]"
-        )
+        console.print(f"[green]Successfully scrubbed GPS data from {image_path.name}[/green]")
     return True
 
 
